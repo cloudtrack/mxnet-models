@@ -481,55 +481,56 @@ def train_lstm(
     train, valid, test = load_data(n_words=n_words, valid_portion=0.05,
                                    maxlen=maxlen)
 
-    # if test_size > 0:
-        # # The test set is sorted by size, but we want to keep random
-        # # size example.  So we must select a random selection of the
-        # # examples.
-        # idx = numpy.arange(len(test[0]))
-        # numpy.random.shuffle(idx)
-        # idx = idx[:test_size]
-        # test = ([test[0][n] for n in idx], [test[1][n] for n in idx])
+    if test_size > 0:
+        # The test set is sorted by size, but we want to keep random
+        # size example.  So we must select a random selection of the
+        # examples.
+        idx = numpy.arange(len(test[0]))
+        numpy.random.shuffle(idx)
+        idx = idx[:test_size]
+        test = ([test[0][n] for n in idx], [test[1][n] for n in idx])
 
-    # ydim = numpy.max(train[1]) + 1
+    ydim = numpy.max(train[1]) + 1
 
-    # model_options['ydim'] = ydim
+    model_options['ydim'] = ydim
 
-    # print('Building model')
-    # # This create the initial parameters as numpy ndarrays.
-    # # Dict name (string) -> numpy ndarray
-    # params = init_params(model_options)
+    print('Building model')
+    # This create the initial parameters as numpy ndarrays.
+    # Dict name (string) -> numpy ndarray
+    params = init_params(model_options)
 
-    # if reload_model:
-        # load_params('lstm_model.npz', params)
+    if reload_model:
+        load_params('lstm_model.npz', params)
 
-    # # This create Theano Shared Variable from the parameters.
-    # # Dict name (string) -> Theano Tensor Shared Variable
-    # # params and tparams have different copy of the weights.
-    # tparams = init_tparams(params)
+    # This create Theano Shared Variable from the parameters.
+    # Dict name (string) -> Theano Tensor Shared Variable
+    # params and tparams have different copy of the weights.
+    tparams = init_tparams(params)
 
-    # # use_noise is for dropout
-    # (use_noise, x, mask,
-     # y, f_pred_prob, f_pred, cost) = build_model(tparams, model_options)
+    # use_noise is for dropout
+    (use_noise, x, mask,
+     y, f_pred_prob, f_pred, cost) = build_model(tparams, model_options)
 
-    # if decay_c > 0.:
-        # decay_c = theano.shared(numpy_floatX(decay_c), name='decay_c')
-        # weight_decay = 0.
-        # weight_decay += (tparams['U'] ** 2).sum()
-        # weight_decay *= decay_c
-        # cost += weight_decay
+    if decay_c > 0.:
+        decay_c = theano.shared(numpy_floatX(decay_c), name='decay_c')
+        weight_decay = 0.
+        weight_decay += (tparams['U'] ** 2).sum()
+        weight_decay *= decay_c
+        cost += weight_decay
 
-    # f_cost = theano.function([x, mask, y], cost, name='f_cost')
+    f_cost = theano.function([x, mask, y], cost, name='f_cost')
 
-    # grads = tensor.grad(cost, wrt=list(tparams.values()))
-    # f_grad = theano.function([x, mask, y], grads, name='f_grad')
+    grads = tensor.grad(cost, wrt=list(tparams.values()))
+    f_grad = theano.function([x, mask, y], grads, name='f_grad')
 
-    # lr = tensor.scalar(name='lr')
-    # f_grad_shared, f_update = optimizer(lr, tparams, grads,
-                                        # x, mask, y, cost)
+    lr = tensor.scalar(name='lr')
+    f_grad_shared, f_update = optimizer(lr, tparams, grads,
+                                        x, mask, y, cost)
 
-    # print('Optimization')
+    print('Optimization')
 
-    # kf_valid = get_minibatches_idx(len(valid[0]), valid_batch_size)
+    kf_valid = get_minibatches_idx(len(valid[0]), valid_batch_size)
+
     # kf_test = get_minibatches_idx(len(test[0]), valid_batch_size)
 
     # print("%d train examples" % len(train[0]))

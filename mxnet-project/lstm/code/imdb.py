@@ -116,6 +116,7 @@ def load_data(path="imdb.pkl", n_words=100000, valid_portion=0.1, maxlen=None,
         f = open(path, 'rb')
 
     train_set = pickle.load(f)
+    # print(train_set)
     test_set = pickle.load(f)
     f.close()
     if maxlen:
@@ -171,5 +172,8 @@ def load_data(path="imdb.pkl", n_words=100000, valid_portion=0.1, maxlen=None,
     train = (train_set_x, train_set_y)
     valid = (valid_set_x, valid_set_y)
     test = (test_set_x, test_set_y)
+
+    # print( "train" )
+    # print( train )
 
     return train, valid, test
