@@ -2,6 +2,7 @@ import re
 import itertools
 from collections import Counter
 import numpy as np
+import cPickle as pkl
 
 from mxnet import nd
 
@@ -66,9 +67,12 @@ def create_word_index():
 create_count( pos_sentiments + neg_sentiments )
 word_dict = create_word_index()
 
-idx2word = { v: k for k, v in word_dict.items()}
+# save dictionary
+f = open('imdb.dict.pkl', 'wb')
+pkl.dump(word_dict, f, -1)
+f.close()
 
-# print(idx2word)
+idx2word = { v: k for k, v in word_dict.items()}
 
 ## helper function: encode sentences
 def encode_sentences(input_file, word_dict):
