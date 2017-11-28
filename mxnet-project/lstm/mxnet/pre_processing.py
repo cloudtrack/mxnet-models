@@ -72,6 +72,11 @@ f = open('imdb.dict.pkl', 'wb')
 pkl.dump(word_dict, f, -1)
 f.close()
 
+# open dictionary
+f = open('imdb.dict.pkl', 'r')
+word_dict = pkl.load(f)
+f.close()
+
 idx2word = { v: k for k, v in word_dict.items()}
 
 ## helper function: encode sentences
