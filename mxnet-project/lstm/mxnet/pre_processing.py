@@ -2,7 +2,7 @@ import re
 import itertools
 from collections import Counter
 import numpy as np
-import cPickle as pkl
+import _pickle as pkl
 
 from mxnet import nd
 
@@ -20,10 +20,12 @@ def read_files(foldername):
 
     return sentiments
 
-pos_foldername = "../data/aclImdb/train/pos/dev"
+# pos_foldername = "../data/aclImdb/train/pos/dev"
+pos_foldername = "../data/aclImdb/train/pos"
 pos_sentiments = read_files(pos_foldername)
 
-neg_foldername = "../data/aclImdb/train/neg/dev"
+# neg_foldername = "../data/aclImdb/train/neg/dev"
+neg_foldername = "../data/aclImdb/train/neg"
 neg_sentiments = read_files(neg_foldername)
 
 pos_labels = [1 for _ in pos_sentiments]
@@ -50,8 +52,8 @@ def create_count(sentiments):
                 word_counter[word] += 1
 
             idx += 1;
-            if ( idx % 10000 == 0 ):
-                print("idx: " + str(idx))
+            # if ( idx % 10000 == 0 ):
+                # print("idx: " + str(idx))
 
 # assign idx to words
 def create_word_index():
@@ -73,7 +75,7 @@ pkl.dump(word_dict, f, -1)
 f.close()
 
 # open dictionary
-f = open('imdb.dict.pkl', 'r')
+f = open('imdb.dict.pkl', 'rb')
 word_dict = pkl.load(f)
 f.close()
 

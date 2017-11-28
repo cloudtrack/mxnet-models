@@ -38,16 +38,17 @@ def pad_sequences(sentences, max_len=500, value = 0):
 
     return padded_sentences
 
-X_train = nd.array(pad_sequences(x_train, max_len=seq_len, value=0), context=context)
-X_test = nd.array(pad_sequences(x_test, max_len=seq_len, value=0), context=context)
-Y_train = nd.array(y_train, context=context)
-Y_test = nd.array(y_test, context=context)
+context = mx.gpu()
+X_train = nd.array(pad_sequences(x_train, max_len=seq_len, value=0), context)
+X_test = nd.array(pad_sequences(x_test, max_len=seq_len, value=0), context)
+Y_train = nd.array(y_train, context)
+Y_test = nd.array(y_test, context)
 
 ## define network
 num_classes = 2
 num_hidden = 64
 learning_rate = .001
-epochs = 20
+epochs = 100
 batch_size = 12
 
 model = nn.Sequential()
@@ -69,7 +70,6 @@ def eval_accuracy(x, y, batch_size):
 
     return accuracy.get()[1]
 
-context = mx.gpu()
 model.collect_params().initialize(mx.init.Xavier(), ctx=context)
 
 model.embed.weight.set_data(embedding_matrix.as_in_context(context))
