@@ -71,3 +71,43 @@ data, count, dictionary, reverse_dictionary, negative = build_dataset(vocabulary
 
 print(count[2])
 
+class DataBatch(object):
+    def __init__(self, data, label):
+        self.data = data
+        self.label = label
+
+class Word2VecDataIterator(mx.io.DataIter):
+    def __init__(self,batch_size=512, negative_samples=5, window=5, num_skips=2):
+        super(Word2VecDataIterator, self).__init__()
+        self.batch_size = batch_size
+        self.negative_samples = negative_samples
+        self.window = window
+        self.num_skips = num_skips
+        self.data, self.negative, self.vocab = (data, negative, dictionary)
+    @property
+    def provide_data(self):
+        return [('contexts', (self.batch_size, 1))]
+
+    @property
+    def provide_label(self):
+        return  [('targets', (self.batch_size, self.negative + 1))]
+
+    def sample_ne(self):
+        return self.negative[random.randint(0, len(self.negative) - 1)]
+
+    def generate_sample(self, pos, word):
+        boundary = self.window
+        while(True):
+            index = random.randint(-boundary, boundary+1)
+            if (index != 0 and pos + boundary >= 0 and pos + boundary < len(self.data)):
+                center_word = word
+                context_word = self.data[pos + index]
+                if center_word != context_word:
+                    targets_vec = []
+                    targets_vec.append(context_word)
+                    while len(targets_vec) < self.negative_samples + 1:
+                        w = self.sample_ne()
+                        if w != word:
+                            targets_vec.append(w)
+                    return [word], targets_vec
+
