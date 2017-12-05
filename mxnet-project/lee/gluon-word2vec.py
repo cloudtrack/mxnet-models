@@ -110,4 +110,20 @@ class Word2VecDataIterator(mx.io.DataIter):
                         if w != word:
                             targets_vec.append(w)
                     return [word], targets_vec
+    def __iter__(self):
+        center_data = []
+        targets = []
+        result = 0
+        for pos, word in enumerate(self.data):
+            for i in range(self.num_skips):
+                center_vec, context_vecs = self.generate_sample(pos ,word)
+                center_data.append(center_vec)
+                targets.append(context_vecs)
+            
+            if len(center_data) > self.batch_size:
+                data_all = [mx.nd.array(center_data[:self.batch_size])]
+                label_all = [mx.nd.array(targets[:self.batch_size])]
+                yield DataBatch(data_all, label_all)
+                center_data = center_data[self.batch_size:]
+                targets = targets[self.batch_size:]
 
