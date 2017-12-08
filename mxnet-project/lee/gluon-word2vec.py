@@ -127,3 +127,26 @@ class Word2VecDataIterator(mx.io.DataIter):
                 center_data = center_data[self.batch_size:]
                 targets = targets[self.batch_size:]
 
+
+VOCAB_SIZE = len(reverse_dictionary)
+BATCH_SIZE = 512
+WORD_DIM = 100
+NEGATIVE_SAMPLES = 5
+
+ctx = mx.gpu()
+data_iterator = Word2VecDataIterator(batch_size=BATCH_SIZE,
+                                     negative_samples=NEGATIVE_SAMPLES,
+                                     window=5, num_skips=2)   
+all_batches = []
+all_data = []
+counting = 0
+for batch in data_iterator:
+    all_batches.append(batch)
+    if(counting % 500 == 0) :
+        print(counting)
+        if(counting > 1000 ) :
+            break
+    counting = counting + 1
+cPickle.dump(all_data, open('all_batches.p', 'wb')) 
+
+
