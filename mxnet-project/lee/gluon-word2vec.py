@@ -147,6 +147,75 @@ for batch in data_iterator:
         if(counting > 1000 ) :
             break
     counting = counting + 1
-cPickle.dump(all_data, open('all_batches.p', 'wb')) 
+cPickle.dump(all_data, open('all_batches.p', 'wb'))
+
+
+class Model(gluon.HybridBlock):
+    def __init__(self, **kwargs):
+        super(Model, self).__init__(**kwargs)
+        with self.name_scope():
+            
+            
+            self.center = nn.Embedding(input_dim=VOCAB_SIZE,
+                                       output_dim=WORD_DIM,
+                                       weight_initializer=mx.initializer.Uniform(1.0/WORD_DIM))
+            
+            
+            self.target = nn.Embedding(input_dim=VOCAB_SIZE,
+                                       output_dim=WORD_DIM,
+                                       weight_initializer=mx.initializer.Zero())
+
+    def hybrid_forward(self, F, center, targets, labels):
+        """
+        Returns the word2vec skipgram with negative sampling network.
+        :param F: F is a function space that depends on the type of other inputs. If their type is NDArray, then F will be mxnet.nd otherwise it will be mxnet.sym
+        :param center: A symbol/NDArray with dimensions (batch_size, 1). Contains the index of center word for each batch.
+        :param targets: A symbol/NDArray with dimensions (batch_size, negative_samples + 1). Contains the indices of 1 target word and `n` negative samples (n=5 in this example)
+        :param labels: A symbol/NDArray with dimensions (batch_size, negative_samples + 1). For 5 negative samples, the array for each batch is [1,0,0,0,0,0] i.e. label is 1 for target word and 0 for negative samples
+        :return: Return a HybridBlock object
+        """
+        center_vector = self.center(center)
+        target_vectors = self.target(targets)
+        pred = F.broadcast_mul(center_vector, target_vectors)
+        pred = F.sum(data = pred, axis = 2)
+        sigmoid = F.sigmoid(pred)
+        loss = F.sum(labels * F.log(sigmoid) + (1 - labels) * F.log(1 - sigmoid), axis=1)
+        loss = loss * -1.0 / BATCH_SIZE
+        loss_layer = F.MakeLoss(loss)
+        return loss_layer
+
+model = Model()
+model.initialize(ctx=ctx)
+model.hybridize() 
+
+trainer = gluon.Trainer(model.collect_params(), 'sgd', {'learning_rate':4,'clip_gradient':5})
+
+labels = nd.zeros((BATCH_SIZE, NEGATIVE_SAMPLES+1), ctx=ctx)
+labels[:,0] = 1
+start_time = time.time()
+epochs = 5
+for e in range(epochs):
+    moving_loss = 0.
+    for i, batch in enumerate(all_batches):
+        center_words = batch.data[0].as_in_context(ctx)
+        target_words = batch.label[0].as_in_context(ctx)
+        with autograd.record():
+            loss = model(center_words, target_words, labels)
+        loss.backward()
+        trainer.step(1, ignore_stale_grad=True)
+        
+        
+        if (i == 0) and (e == 0):
+            moving_loss = loss.asnumpy().sum()
+        else:
+            moving_loss = .99 * moving_loss + .01 * loss.asnumpy().sum()
+        if (i + 1) % 50 == 0:
+            print("Epoch %s, batch %s. Moving avg of loss: %s" % (e, i, moving_loss))
+        if i > 15000:
+            break
+
+print("1 epoch took %s seconds" % (time.time() - start_time))
+ 
+
 
 
