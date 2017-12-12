@@ -20,16 +20,37 @@ def read_files(foldername):
 
     return sentiments
 
+## prepare train data
 # pos_foldername = "../data/aclImdb/train/pos/dev"
-pos_foldername = "../data/aclImdb/train/pos"
-pos_sentiments = read_files(pos_foldername)
+train_pos_foldername = "../data/aclImdb/train/pos"
+train_pos_sentiments = read_files(train_pos_foldername)
 
 # neg_foldername = "../data/aclImdb/train/neg/dev"
-neg_foldername = "../data/aclImdb/train/neg"
-neg_sentiments = read_files(neg_foldername)
+train_neg_foldername = "../data/aclImdb/train/neg"
+train_neg_sentiments = read_files(train_neg_foldername)
 
-pos_labels = [1 for _ in pos_sentiments]
-neg_labels = [0 for _ in neg_sentiments]
+train_all_sentiments = train_pos_sentiments + train_neg_sentiments
+
+train_pos_labels = [1 for _ in train_pos_sentiments]
+train_neg_labels = [0 for _ in train_neg_sentiments]
+train_all_labels = train_pos_labels + train_neg_labels
+
+## prepare test_data
+test_pos_foldername = "../data/aclImdb/test/pos"
+test_pos_sentiments = read_files(test_pos_foldername)
+
+# neg_foldername = "../data/aclImdb/train/neg/dev"
+test_neg_foldername = "../data/aclImdb/test/neg"
+test_neg_sentiments = read_files(test_neg_foldername)
+
+test_all_sentiments = test_pos_sentiments + test_neg_sentiments
+all_sentiments = train_all_sentiments + test_all_sentiments
+
+test_pos_labels = [1 for _ in test_pos_sentiments]
+test_neg_labels = [0 for _ in test_neg_sentiments]
+test_all_labels = test_pos_labels + test_neg_labels
+
+all_labels = train_all_labels + test_all_labels
 
 ## make dictionary..
 def clear_str(string):
@@ -43,7 +64,7 @@ word_counter = Counter()
 # make whole word count
 def create_count(sentiments):
     print("create_count...")
-    idx = 0;
+    # idx = 0;
     for sentiment in sentiments:
         for word in (clear_str(sentiment)).split():
             if word not in word_counter.keys():
@@ -51,7 +72,7 @@ def create_count(sentiments):
             else:
                 word_counter[word] += 1
 
-            idx += 1;
+            # idx += 1;
             # if ( idx % 10000 == 0 ):
                 # print("idx: " + str(idx))
 
@@ -66,7 +87,8 @@ def create_word_index():
 
     return word_dict
 
-create_count( pos_sentiments + neg_sentiments )
+# create_count( train_all_sentiments )
+create_count( all_sentiments )
 word_dict = create_word_index()
 
 # save dictionary
@@ -93,13 +115,31 @@ def encode_sentences(input_file, word_dict):
 
     return output_string
 
-pos_encoded = encode_sentences(pos_sentiments, word_dict)
-neg_encoded = encode_sentences(neg_sentiments, word_dict)
-all_encoded = pos_encoded + neg_encoded
+train_pos_encoded = encode_sentences(train_pos_sentiments, word_dict)
+train_neg_encoded = encode_sentences(train_neg_sentiments, word_dict)
+train_all_encoded = train_pos_encoded + train_neg_encoded
+
+test_pos_encoded = encode_sentences(test_pos_sentiments, word_dict)
+test_neg_encoded = encode_sentences(test_neg_sentiments, word_dict)
+test_all_encoded = test_pos_encoded + test_neg_encoded
+
+all_encoded = train_all_encoded + test_all_encoded
+
+# print( "check" )
+# print( "train[0]: " + str(train_all_encoded[0]) )
+# print( "test[0]: " + str(test_all_encoded[0]) )
+print("train len: " + str(len(train_all_encoded)))
+print("test len: " + str(len(test_all_encoded)))
+
+voca_size = 10000 # total number of voca we will track
+train_data = [np.array([i if i < (voca_size-1) else (voca_size-1) for i in s]) for s in train_all_encoded]
+test_data = [np.array([i if i < (voca_size-1) else (voca_size-1) for i in s]) for s in test_all_encoded]
+all_data = [np.array([i if i < (voca_size-1) else (voca_size-1) for i in s]) for s in all_encoded]
 
 
-voca_size = 5000 # total number of voca we will track
-t_data = [np.array([i if i < (voca_size-1) else (voca_size-1) for i in s]) for s in all_encoded]
+# print( "is same??" )
+# print( np.array_equal(train_data, test_data) )
+# quit()
 
 ## word2vec precess
 num_embed = 300 # richness of the word attributes captured

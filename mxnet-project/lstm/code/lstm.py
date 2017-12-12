@@ -531,124 +531,124 @@ def train_lstm(
 
     kf_valid = get_minibatches_idx(len(valid[0]), valid_batch_size)
 
-    # kf_test = get_minibatches_idx(len(test[0]), valid_batch_size)
+    kf_test = get_minibatches_idx(len(test[0]), valid_batch_size)
 
-    # print("%d train examples" % len(train[0]))
-    # print("%d valid examples" % len(valid[0]))
-    # print("%d test examples" % len(test[0]))
+    print("%d train examples" % len(train[0]))
+    print("%d valid examples" % len(valid[0]))
+    print("%d test examples" % len(test[0]))
 
-    # history_errs = []
-    # best_p = None
-    # bad_count = 0
+    history_errs = []
+    best_p = None
+    bad_count = 0
 
-    # if validFreq == -1:
-        # validFreq = len(train[0]) // batch_size
-    # if saveFreq == -1:
-        # saveFreq = len(train[0]) // batch_size
+    if validFreq == -1:
+        validFreq = len(train[0]) // batch_size
+    if saveFreq == -1:
+        saveFreq = len(train[0]) // batch_size
 
-    # uidx = 0  # the number of update done
-    # estop = False  # early stop
-    # start_time = time.time()
-    # try:
-        # for eidx in range(max_epochs):
-            # n_samples = 0
+    uidx = 0  # the number of update done
+    estop = False  # early stop
+    start_time = time.time()
+    try:
+        for eidx in range(max_epochs):
+            n_samples = 0
 
-            # # Get new shuffled index for the training set.
-            # kf = get_minibatches_idx(len(train[0]), batch_size, shuffle=True)
+            # Get new shuffled index for the training set.
+            kf = get_minibatches_idx(len(train[0]), batch_size, shuffle=True)
 
-            # for _, train_index in kf:
-                # uidx += 1
-                # use_noise.set_value(1.)
+            for _, train_index in kf:
+                uidx += 1
+                use_noise.set_value(1.)
 
-                # # Select the random examples for this minibatch
-                # y = [train[1][t] for t in train_index]
-                # x = [train[0][t]for t in train_index]
+                # Select the random examples for this minibatch
+                y = [train[1][t] for t in train_index]
+                x = [train[0][t]for t in train_index]
 
-                # # Get the data in numpy.ndarray format
-                # # This swap the axis!
-                # # Return something of shape (minibatch maxlen, n samples)
-                # x, mask, y = prepare_data(x, y)
-                # n_samples += x.shape[1]
+                # Get the data in numpy.ndarray format
+                # This swap the axis!
+                # Return something of shape (minibatch maxlen, n samples)
+                x, mask, y = prepare_data(x, y)
+                n_samples += x.shape[1]
 
-                # cost = f_grad_shared(x, mask, y)
-                # f_update(lrate)
+                cost = f_grad_shared(x, mask, y)
+                f_update(lrate)
 
-                # if numpy.isnan(cost) or numpy.isinf(cost):
-                    # print('bad cost detected: ', cost)
-                    # return 1., 1., 1.
+                if numpy.isnan(cost) or numpy.isinf(cost):
+                    print('bad cost detected: ', cost)
+                    return 1., 1., 1.
 
-                # if numpy.mod(uidx, dispFreq) == 0:
-                    # print('Epoch ', eidx, 'Update ', uidx, 'Cost ', cost)
+                if numpy.mod(uidx, dispFreq) == 0:
+                    print('Epoch ', eidx, 'Update ', uidx, 'Cost ', cost)
 
-                # if saveto and numpy.mod(uidx, saveFreq) == 0:
-                    # print('Saving...')
+                if saveto and numpy.mod(uidx, saveFreq) == 0:
+                    print('Saving...')
 
-                    # if best_p is not None:
-                        # params = best_p
-                    # else:
-                        # params = unzip(tparams)
-                    # numpy.savez(saveto, history_errs=history_errs, **params)
-                    # pickle.dump(model_options, open('%s.pkl' % saveto, 'wb'), -1)
-                    # print('Done')
+                    if best_p is not None:
+                        params = best_p
+                    else:
+                        params = unzip(tparams)
+                    numpy.savez(saveto, history_errs=history_errs, **params)
+                    pickle.dump(model_options, open('%s.pkl' % saveto, 'wb'), -1)
+                    print('Done')
 
-                # if numpy.mod(uidx, validFreq) == 0:
-                    # use_noise.set_value(0.)
-                    # train_err = pred_error(f_pred, prepare_data, train, kf)
-                    # valid_err = pred_error(f_pred, prepare_data, valid,
-                                           # kf_valid)
-                    # test_err = pred_error(f_pred, prepare_data, test, kf_test)
+                if numpy.mod(uidx, validFreq) == 0:
+                    use_noise.set_value(0.)
+                    train_err = pred_error(f_pred, prepare_data, train, kf)
+                    valid_err = pred_error(f_pred, prepare_data, valid,
+                                           kf_valid)
+                    test_err = pred_error(f_pred, prepare_data, test, kf_test)
 
-                    # history_errs.append([valid_err, test_err])
+                    history_errs.append([valid_err, test_err])
 
-                    # if (best_p is None or
-                        # valid_err <= numpy.array(history_errs)[:,
-                                                               # 0].min()):
+                    if (best_p is None or
+                        valid_err <= numpy.array(history_errs)[:,
+                                                               0].min()):
 
-                        # best_p = unzip(tparams)
-                        # bad_counter = 0
+                        best_p = unzip(tparams)
+                        bad_counter = 0
 
-                    # print('Train ', train_err, 'Valid ', valid_err,
-                           # 'Test ', test_err)
+                    print('Train ', train_err, 'Valid ', valid_err,
+                           'Test ', test_err)
 
-                    # if (len(history_errs) > patience and
-                        # valid_err >= numpy.array(history_errs)[:-patience,
-                                                               # 0].min()):
-                        # bad_counter += 1
-                        # if bad_counter > patience:
-                            # print('Early Stop!')
-                            # estop = True
-                            # break
+                    if (len(history_errs) > patience and
+                        valid_err >= numpy.array(history_errs)[:-patience,
+                                                               0].min()):
+                        bad_counter += 1
+                        if bad_counter > patience:
+                            print('Early Stop!')
+                            estop = True
+                            break
 
-            # print('Seen %d samples' % n_samples)
+            print('Seen %d samples' % n_samples)
 
-            # if estop:
-                # break
+            if estop:
+                break
 
-    # except KeyboardInterrupt:
-        # print("Training interupted")
+    except KeyboardInterrupt:
+        print("Training interupted")
 
-    # end_time = time.time()
-    # if best_p is not None:
-        # zipp(best_p, tparams)
-    # else:
-        # best_p = unzip(tparams)
+    end_time = time.time()
+    if best_p is not None:
+        zipp(best_p, tparams)
+    else:
+        best_p = unzip(tparams)
 
-    # use_noise.set_value(0.)
-    # kf_train_sorted = get_minibatches_idx(len(train[0]), batch_size)
-    # train_err = pred_error(f_pred, prepare_data, train, kf_train_sorted)
-    # valid_err = pred_error(f_pred, prepare_data, valid, kf_valid)
-    # test_err = pred_error(f_pred, prepare_data, test, kf_test)
+    use_noise.set_value(0.)
+    kf_train_sorted = get_minibatches_idx(len(train[0]), batch_size)
+    train_err = pred_error(f_pred, prepare_data, train, kf_train_sorted)
+    valid_err = pred_error(f_pred, prepare_data, valid, kf_valid)
+    test_err = pred_error(f_pred, prepare_data, test, kf_test)
 
-    # print( 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err )
-    # if saveto:
-        # numpy.savez(saveto, train_err=train_err,
-                    # valid_err=valid_err, test_err=test_err,
-                    # history_errs=history_errs, **best_p)
-    # print('The code run for %d epochs, with %f sec/epochs' % (
-        # (eidx + 1), (end_time - start_time) / (1. * (eidx + 1))))
-    # print( ('Training took %.1fs' %
-            # (end_time - start_time)), file=sys.stderr)
-    # return train_err, valid_err, test_err
+    print( 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err )
+    if saveto:
+        numpy.savez(saveto, train_err=train_err,
+                    valid_err=valid_err, test_err=test_err,
+                    history_errs=history_errs, **best_p)
+    print('The code run for %d epochs, with %f sec/epochs' % (
+        (eidx + 1), (end_time - start_time) / (1. * (eidx + 1))))
+    print( ('Training took %.1fs' %
+            (end_time - start_time)), file=sys.stderr)
+    return train_err, valid_err, test_err
 
 
 if __name__ == '__main__':

@@ -6,16 +6,25 @@ from mxnet import gluon, nd, autograd
 from mxnet.gluon import nn, rnn
 
 
-# t_data = pt_data
-all_labels = pos_labels + neg_labels
+# x_train = train_data
+# y_train = train_all_labels
+
+# x_test = test_data
+# y_test = test_all_labels
 
 # divide 30% of data into test data
-x_train, x_test, y_train, y_test = train_test_split(t_data, all_labels, test_size=0.3, random_state=42)
+# x_train, x_test, y_train, y_test = train_test_split(train_data, train_all_labels, test_size=0.3, random_state=42)
+x_train, x_test, y_train, y_test = train_test_split(all_data, all_labels, test_size=0.5, random_state=42)
+
+
+print ("check??")
+print ( x_train[0] )
+print ( x_test[0] )
 
 # some statistics
-min_len = min(map(len, t_data))
-max_len = max(map(len, t_data))
-avg_len = sum(map(len, t_data)) / len(t_data)
+min_len = min(map(len, train_data))
+max_len = max(map(len, train_data))
+avg_len = sum(map(len, train_data)) / len(train_data)
 
 print("min len: ", min_len)
 print("max len: ", max_len)
@@ -44,11 +53,14 @@ X_test = nd.array(pad_sequences(x_test, max_len=seq_len, value=0), context)
 Y_train = nd.array(y_train, context)
 Y_test = nd.array(y_test, context)
 
+print("X_train: " + str(X_train))
+print("X_test: " + str(X_test))
+
 ## define network
 num_classes = 2
 num_hidden = 64
 learning_rate = .001
-epochs = 100
+epochs = 200
 batch_size = 12
 
 model = nn.Sequential()
