@@ -6,20 +6,17 @@ from mxnet import gluon, nd, autograd
 from mxnet.gluon import nn, rnn
 
 
+x_train, x_test, y_train, y_test = train_test_split(train_data, train_all_labels, test_size=0, random_state=42)
 # x_train = train_data
 # y_train = train_all_labels
 
-# x_test = test_data
-# y_test = test_all_labels
+x_test = test_data
+y_test = test_all_labels
 
 # divide 30% of data into test data
 # x_train, x_test, y_train, y_test = train_test_split(train_data, train_all_labels, test_size=0.3, random_state=42)
-x_train, x_test, y_train, y_test = train_test_split(all_data, all_labels, test_size=0.5, random_state=42)
+#x_train, x_test, y_train, y_test = train_test_split(all_data, all_labels, test_size=0.5, random_state=42)
 
-
-print ("check??")
-print ( x_train[0] )
-print ( x_test[0] )
 
 # some statistics
 min_len = min(map(len, train_data))
@@ -30,7 +27,7 @@ print("min len: ", min_len)
 print("max len: ", max_len)
 print("avg len: ", avg_len)
 
-seq_len = 500 # set the max word length of each movie review
+seq_len = 250 # set the max word length of each movie review
 
 # if sentence is greater than max_len, truncates
 # if less, pad with value
@@ -56,17 +53,22 @@ Y_test = nd.array(y_test, context)
 print("X_train: " + str(X_train))
 print("X_test: " + str(X_test))
 
+print("Y_train: " + str(Y_train))
+print("Y_test: " + str(Y_test))
+
+
+
 ## define network
 num_classes = 2
-num_hidden = 64
-learning_rate = .001
+num_hidden = 200
+learning_rate = .01
 epochs = 200
-batch_size = 12
+batch_size = 20
 
 model = nn.Sequential()
 with model.name_scope():
     model.embed = nn.Embedding(voca_size, num_embed)
-    model.add(rnn.LSTM(num_hidden, layout = 'NTC'))
+    model.add(rnn.LSTM(num_hidden, layout = 'NTC', dropout=0.7, bidirectional=False))
     model.add(nn.Dense(num_classes))
 
 def eval_accuracy(x, y, batch_size):
@@ -106,7 +108,7 @@ for epoch in range(epochs):
         L.backward()
         trainer.step(data.shape[0])
 
-    test_accuracy = eval_accuracy(X_train, Y_train, batch_size)
-    train_accuracy = eval_accuracy(X_test, Y_test, batch_size)
+    test_accuracy = eval_accuracy(X_test, Y_test, batch_size)
+    train_accuracy = eval_accuracy(X_train, Y_train, batch_size)
     print("Epoch %s. Train_acc %s, Test_acc %s" %
           (epoch, train_accuracy, test_accuracy))

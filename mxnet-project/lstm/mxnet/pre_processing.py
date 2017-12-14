@@ -64,17 +64,12 @@ word_counter = Counter()
 # make whole word count
 def create_count(sentiments):
     print("create_count...")
-    # idx = 0;
     for sentiment in sentiments:
         for word in (clear_str(sentiment)).split():
             if word not in word_counter.keys():
                 word_counter[word] = 1
             else:
                 word_counter[word] += 1
-
-            # idx += 1;
-            # if ( idx % 10000 == 0 ):
-                # print("idx: " + str(idx))
 
 # assign idx to words
 def create_word_index():
@@ -125,21 +120,12 @@ test_all_encoded = test_pos_encoded + test_neg_encoded
 
 all_encoded = train_all_encoded + test_all_encoded
 
-# print( "check" )
-# print( "train[0]: " + str(train_all_encoded[0]) )
-# print( "test[0]: " + str(test_all_encoded[0]) )
-print("train len: " + str(len(train_all_encoded)))
-print("test len: " + str(len(test_all_encoded)))
-
 voca_size = 10000 # total number of voca we will track
 train_data = [np.array([i if i < (voca_size-1) else (voca_size-1) for i in s]) for s in train_all_encoded]
 test_data = [np.array([i if i < (voca_size-1) else (voca_size-1) for i in s]) for s in test_all_encoded]
-all_data = [np.array([i if i < (voca_size-1) else (voca_size-1) for i in s]) for s in all_encoded]
+# all_data = [np.array([i if i < (voca_size-1) else (voca_size-1) for i in s]) for s in all_encoded]
+all_data = train_data + test_data
 
-
-# print( "is same??" )
-# print( np.array_equal(train_data, test_data) )
-# quit()
 
 ## word2vec precess
 num_embed = 300 # richness of the word attributes captured
