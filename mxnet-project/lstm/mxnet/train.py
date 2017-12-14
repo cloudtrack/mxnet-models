@@ -60,7 +60,7 @@ print("Y_test: " + str(Y_test))
 
 ## define network
 num_classes = 2
-num_hidden = 25
+num_hidden = 200
 learning_rate = .01
 epochs = 200
 batch_size = 20
