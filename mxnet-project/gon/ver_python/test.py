@@ -4,13 +4,15 @@ import time
 
 from rbm import RBM
 from load_data import load_data
-
+import mxnet as mx
 def test(learning_rate=0.1, k=1, training_epochs=15):
   print '... loading data'
 
   datasets = load_data('mnist.pkl.gz')
   train_set_x, train_set_y = datasets[0]
   test_set_x, test_set_y = datasets[2]
+
+
 
   print '... modeling'
 

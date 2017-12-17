@@ -1,94 +1,138 @@
 # -*- coding: utf-8 -*-
+import mxnet as mx
+import numpy as np
+import copy
 
-import numpy
-from util/utils import *
 
 class RBM(object):
-  """ Restricted Boltzmann Machine (RBM) """
-  def __init__(self, input=None, n_visible=28*28, n_hidden=500, \
-      W=None, hbias=None, vbias=None, numpy_rng=None):
 
-    self.input = input
-    self.n_visible = n_visible
-    self.n_hidden = n_hidden
+    def __init__(self, input, n_visible, n_hidden):
+        self.n_visible = n_visible
+        self.n_hidden = n_hidden
+        self.w = mx.symbol.Variable('weight')
+        self.h_bias = mx.symbol.Variable('h_bias')
+        self.v_bias = mx.symbol.Variable('v_bias')
+        self.input = input
+        self.var_input = mx.symbol.Variable('var_input')
+        weight = self.initialize_weight(self.n_visible, self.n_hidden)
+        print(weight)
+        self.w.bind(mx.cpu(), {mx.nd.array(weight)})
+        self.rng = np.random.RandomState(1234)
+        # self.h_samples_ = mx.nd.array(np.zeros((self.batch_size, (n_visibile, n_hidden))))
+        self.h_samples_ = mx.symbol.Variable('h_samples_')
 
-    if numpy_rng is None:
-      numpy_rng = numpy.random.RandomState(1234)
 
-    if W is None:
-      W = numpy.asarray(numpy_rng.uniform(
-        low=-4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-        high=4 * numpy.sqrt(6. / (n_hidden + n_visible)),
-        size=(n_visible, n_hidden)))
+    def initialize_weight(self, n_visible, n_hidden):
+        w = np.asarray( np.random.RandomState(1234).uniform(
+                          low=-4 * np.sqrt(6. / (n_visible + n_hidden)),
+                          high=4 * np.sqrt(6. / (n_visible + n_hidden)),
+                          size= (n_visible, n_hidden))
+                        ,dtype=np.dtype(np.float32))
+        return w
 
-    if hbias is None:
-      hbias = numpy.zeros(n_hidden)
+    def propup(self, vis):
+        wx_b = mx.symbol.FullyConnected(input = vis, weight = self.w,
+                                                    bias = self.h_bias, n_hidden = self.n_hidden)
+        sigmoid_activation = mx.symbol.Activation(input=wx_b, act_type = 'sigmoid', name = 'activation')
+        return sigmoid_activation
 
-    if vbias is None:
-      vbias = numpy.zeros(n_visible)
+    def p_vh(self, hid):
+        # hid = self.prop_up()
+        w_t = mx.symbol.transpose(input = self.w)
+        wx_b = mx.symbol.FullyConnected(input = hid, weight= w_t,
+                                        bias=self.v_bias, n_hidden=self.n_hidden)
+        p_vh = mx.symbol.Activation(input=wx_b, act_type = 'sigmoid')
+        return p_vh
 
-    self.numpy_rng = numpy_rng
-    self.W = W
-    self.hbias = hbias
-    self.vbias = vbias
+# propup or p_vh is 상호배타적
+    def sample_h_given_v(self, v0_sample):
+        h1_mean = self.propup(v0_sample)
+        h1_sample = self.binomial_random(h1_mean)
+        return [h1_mean, h1_sample]
 
-  def free_energy(self, v_sample):
-    """ no use """
-    return
+    def propdown(self, hid):
+        w_t = mx.symbol.transpose(input=self.w)
+        wx_b = mx.symbol.FullyConnected(input = self.hid, weight = w_t,
+                                                    bias = self.v_bias, n_hidden = self.n_visible)
+        sigmoid_activation = mx.symbol.Activation(input=wx_b, act_type = 'sigmoid', name = 'activation')
+        return sigmoid_activation
 
-  def propup(self, vis):
-    pre_sigmoid_activation = numpy.dot(vis, self.W) + self.hbias
-    return sigmoid(pre_sigmoid_activation)
+    def p_hv(self, v):
+        'v should be symbol'
+        wx_b = mx.symbol.FullyConnected(input=v, weight=self.w,
+                                        bias=self.h_bias, n_hidden=self.n_hidden)
+        p_hv = mx.symbol.Activation(input=wx_b, act_type='sigmoid')
+        return p_hv
 
-  def sample_h_given_v(self, v0_sample):
-    h1_mean = self.propup(v0_sample)
-    h1_sample = self.numpy_rng.binomial(size=h1_mean.shape, n=1, p=h1_mean)
-    return [h1_mean, h1_sample]
+    def sample_v_given_h(self, h0_sample):
+        v1_mean = self.propdown(h0_sample)
+        v1_sample = self.binomial_random(v1_mean)
+        return [v1_mean, v1_sample]
 
-  def propdown(self, hid):
-    pre_sigmoid_activation = numpy.dot(hid, self.W.T) + self.vbias
-    return sigmoid(pre_sigmoid_activation)
+    def gibbs_hvh(self, h0_sample):
+        v1_mean, v1_sample = self.sample_v_given_h(h0_sample)
+        h1_mean, h1_sample = self.sample_h_given_vs(v1_sample)
+        return [v1_mean, v1_sample,
+                h1_mean, h1_sample]
 
-  def sample_v_given_h(self, h0_sample):
-    v1_mean = self.propdown(h0_sample)
-    v1_sample = self.numpy_rng.binomial(size=v1_mean.shape, n=1, p=v1_mean)
-    return [v1_mean, v1_sample]
+    def gibbs_vhv(self, v):
+        h_sam = self.sample_h_given_vs(v)
+        v_sam = self.sample_v_given_h(h_sam)
+        return v_sam
 
-  def gibbs_hvh(self, h0_sample):
-    v1_mean, v1_sample = self.sample_v_given_h(h0_sample)
-    h1_mean, h1_sample = self.sample_h_given_v(v1_sample)
-    return [v1_mean, v1_sample,
-            h1_mean, h1_sample]
+    def free_energy(self, v_sample):
+        ''' Function to compute the free energy '''
+        wx_b = mx.symbol.FullyConnected(input=v_sample, weight = self.w,
+                                        bias=self.h_bias, n_hidden=self.n_hidden)
+        vbias_term = mx.symbol.FullyConnected(input=v_sample, weight = self.v_bias,
+                                        bo_bias = True, n_hidden=self.n_hidden)
+        hidden_term = mx.symbol.sum(input = mx.symbol.log(1+ mx.symbol.exp(input = wx_b)))
+        #problem here: parameter of exp should be ndarray
 
-  def gibbs_vhv(self, v0_sample):
-    """ no use """
-    return
+        return -hidden_term - vbias_term
 
-  def get_cost_updates(self, lr=0.1, persistent=None, k=1):
-    ph_mean, ph_sample = self.sample_h_given_v(self.input)
+#    def get_cost_updates(self, lr=0.1, k=1):
+#         # compute positive phase
+#         h_sam = self.p_hv(self.var_input)
+#
+#         # decide how to initialize persistent chain:
+#         # for CD, we use the newly generate hidden sample
+#         # for PCD, we initialize from the old state of the chain
+#         h_gib = self.gibbs_hvh(h_sam)
+#         cost = mx.symbol.mean(input = self.free_energy(self.var_input)) - \
+#                mx.symbol.mean(input=self.free_energy(h_gib))
 
-    if persistent is None:
-      chain_start = ph_sample
-    else:
-      chain_start = persistent
+    def get_cost_updates(self, lr=0.1, persistent=None, k=1):
+      ph_mean, ph_sample = self.sample_h_given_v(self.input)
 
-    for step in xrange(k):
-      if step == 0:
-        nv_means, nv_samples,\
-        nh_means, nh_samples = self.gibbs_hvh(chain_start)
+      if persistent is None:
+        chain_start = ph_sample
       else:
-        nv_means, nv_samples,\
-        nh_means, nh_samples = self.gibbs_hvh(nh_samples)
+        chain_start = persistent
 
-    self.W += lr * (numpy.dot(self.input.T, ph_mean)
-                    - numpy.dot(nv_samples.T, nh_means))
-    self.vbias += lr * numpy.mean(self.input - nv_samples, axis=0)
-    self.hbias += lr * numpy.mean(ph_mean - nh_means, axis=0)
+      for step in xrange(k):
+        if step == 0:
+          nv_means, nv_samples, \
+          nh_means, nh_samples = self.gibbs_hvh(chain_start)
+        else:
+          nv_means, nv_samples, \
+          nh_means, nh_samples = self.gibbs_hvh(nh_samples)
 
-    monitoring_cost = numpy.mean(numpy.square(self.input - nv_means))
+      self.W += lr * (np.dot(self.input.T, ph_mean)
+                      - np.dot(nv_samples.T, nh_means))
+      self.vbias += lr * np.mean(self.input - nv_samples, axis=0)
+      self.hbias += lr * np.mean(ph_mean - nh_means, axis=0)
 
-    return monitoring_cost
+      monitoring_cost = np.mean(np.square(self.input - nv_means))
 
-  def get_pseudo_likelihood_cost(self, updates):
-    """ no use """
-    return
+      return monitoring_cost
+
+
+    def binomial_random(self, mean):
+        sample_array = mx.nd.array(self.rng.random_sample(size=mean.shape))
+        sample = mx.sym.Variable('sample')
+        sample.bind(ctx=mx.cpu(), args= sample_array)
+        p_sample = sample<sample_array
+        return p_sample
+
+
