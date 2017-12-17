@@ -2,7 +2,7 @@
 
 import time
 
-from rbm import RBM
+from rbm2 import RBM
 from load_data import load_data
 import mxnet as mx
 def test(learning_rate=0.1, k=1, training_epochs=15):
@@ -16,7 +16,7 @@ def test(learning_rate=0.1, k=1, training_epochs=15):
 
   print '... modeling'
 
-  rbm = RBM(input=train_set_x, n_visible=28 * 28, n_hidden=500)
+  rbm = RBM(input=train_set_x, n_visible=28 * 28, n_hidden= 28* 28)
 
   print '... training'
 
