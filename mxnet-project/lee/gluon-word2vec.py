@@ -1,54 +1,53 @@
 import time
+import numpy as np
+import logging
+import sys, random, time, math
 import mxnet as mx
 from mxnet import nd
 from mxnet import gluon
 from mxnet.gluon import Block, nn
 from mxnet import autograd
 import _pickle as cPickle
+import collections
 import math
 import os
 import random
 from tempfile import gettempdir
 import zipfile
 from six.moves import urllib
-from six.moves import xrange
+from six.moves import xrange  # pylint:
 
 url = 'http://mattmahoney.net/dc/'
-
-
 def maybe_download(filename, expected_bytes):
-    local_filename = os.path.join(gettempdir(), filename)
-    if not os.path.exists(local_filename):
-        local_filename, _ = urllib.request.urlretrieve(url + filename,
-                                                       local_filename)
-    statinfo = os.stat(local_filename)
-    if statinfo.st_size == expected_bytes:
-        print('Found and verified', filename)
-    else:
-        print(statinfo.st_size)
-        raise Exception('Failed to verify ' + local_filename +
-                        '. Can you get to it with a browser?')
-    return local_filename
-
+  """Download a file if not present, and make sure it's the right size."""
+  local_filename = os.path.join(gettempdir(), filename)
+  if not os.path.exists(local_filename):
+    local_filename, _ = urllib.request.urlretrieve(url + filename,
+                                                   local_filename)
+  statinfo = os.stat(local_filename)
+  if statinfo.st_size == expected_bytes:
+    print('Found and verified', filename)
+  else:
+    print(statinfo.st_size)
+    raise Exception('Failed to verify ' + local_filename +
+                    '. Can you get to it with a browser?')
+  return local_filename
 
 filename = maybe_download('text8.zip', 31344016)
 
-
 def read_data(filename):
-    with zipfile.ZipFile(filename) as f:
-        data = str(f.read(f.namelist()[0]))
-    return data
-
-
+  """Extract the first file enclosed in a zip file as a list of words."""
+  with zipfile.ZipFile(filename) as f:
+    data = str(f.read(f.namelist()[0]))
+  return data
 buf = read_data(filename)
 vocabulary = buf.split()
-
 
 def build_dataset(words, n_words):
     dictionary = {}
     reverse_dictionary = ["NA"]
-    count = [0]
-    data = []
+    count = [0] 
+    data = [] 
     for word in vocabulary:
         if len(word) == 0:
             continue
@@ -59,18 +58,15 @@ def build_dataset(words, n_words):
         wid = dictionary[word]
         data.append(wid)
         count[wid] += 1
-    negative = []
+    negative = [] 
     for i, v in enumerate(count):
         if i == 0 or v < 5:
             continue
         v = int(math.pow(v * 1.0, 0.75))
         negative += [i for _ in range(v)]
     return data, count, dictionary, reverse_dictionary, negative
-
-
 vocabulary_size = 50000
 data, count, dictionary, reverse_dictionary, negative = build_dataset(vocabulary, vocabulary_size)
-
 
 class DataBatch(object):
     def __init__(self, data, label):
@@ -83,7 +79,7 @@ class Word2VecDataIterator(mx.io.DataIter):
         self.batch_size = batch_size
         self.negative_samples = num_neg_samples
         self.window = window
-        self.data, self.negative, self.dictionary = (data, negative, dictionary)
+        self.data, self.negative, self.dictionary, self.freq = (data, negative, dictionary, count)
 
     @property
     def provide_data(self):
@@ -100,8 +96,10 @@ class Word2VecDataIterator(mx.io.DataIter):
         input_data = []
         update_targets = []
         for pos, word in enumerate(self.data):
-            for index in range(-self.window, self.window + 1):
+            for index in range(-self.window, self.window + 1, 2):
                 if (index != 0 and pos + index >= 0 and pos + index < len(self.data)):
+                    if self.freq[word] < 5:
+                        continue
                     context = self.data[pos + index]
                     if word != context:
                         input_data.append([word])
@@ -120,8 +118,6 @@ class Word2VecDataIterator(mx.io.DataIter):
                 yield DataBatch(batch_inputs, batch_update_targets)
                 input_data = input_data[self.batch_size:]
                 update_targets = update_targets[self.batch_size:]
-
-
 dictionary_size = len(reverse_dictionary)
 batch_size = 512
 num_hiddens = 100
@@ -130,22 +126,18 @@ num_negative_samples = 5
 ctx = mx.gpu()
 data_iterator = Word2VecDataIterator(batch_size=batch_size,
                                      num_neg_samples=num_negative_samples,
-<<<<<<< HEAD
-                                     window=5, num_skips=2)
-=======
                                      window=5)
->>>>>>> refs/remotes/origin/master
 batches = []
-training_data = []
 counting = 0
+
 for batch in data_iterator:
     batches.append(batch)
     if (counting % 500 == 0):
         print(counting)
+    #if (counting > 100000) : break
     counting = counting + 1
-
-    cPickle.dump(training_data, open('all_batches.p', 'wb'))
-
+    
+cPickle.dump(batches, open('batches.p', 'wb'))
 
 class Model(gluon.HybridBlock):
     def __init__(self, **kwargs):
@@ -169,8 +161,6 @@ class Model(gluon.HybridBlock):
         loss = loss * -1.0 / batch_size
         loss_layer = F.MakeLoss(loss)
         return loss_layer
-
-
 model = Model()
 model.initialize(ctx=ctx)
 model.hybridize()
@@ -178,17 +168,16 @@ model.hybridize()
 trainer = gluon.Trainer(model.collect_params(), 'sgd', {'learning_rate': 4, 'clip_gradient': 5})
 
 labels = nd.zeros((batch_size, num_negative_samples + 1), ctx=ctx)
-labels[:, 0] = 1
+labels[:, 0] = 1 # [1 0 0 0 0 0]
 start_time = time.time()
-num_epochs = 5
+num_epochs = 1
 
-def get_loss(epoch_n, batch_n, loss):
+
+def get_loss(epoch_n, batch_n, moving_loss, loss):
     if(batch_n==0 and epoch_n==0):
-        loss = loss.asnumpy().sum()
+        return (loss.asnumpy().sum())
     else:
-        loss = .99 * loss + .01 * loss.asnumpy().sum()
-    if(i + 1) % 100 == 0:
-        print("%sth epoch , %sth batch. avg of loss: %s" % (epoch_n, batch_n, loss))
+        return (.99 * moving_loss + .01 * loss.asnumpy().sum())
     return loss
 
 for e in range(num_epochs):
@@ -201,16 +190,16 @@ for e in range(num_epochs):
         loss.backward()
         # ignore_stale_grad ; only update calculated target weights
         trainer.step(1, ignore_stale_grad=True)
-        moving_loss = get_loss(e, i, moving_loss)
-        if i > 15000:
-            break
+        #  Keep a moving average of the losses
+        moving_loss = get_loss(e, i , moving_loss, loss)
+        if (i + 1) % 1000 == 0:
+            print("%sth epoch , %sth batch. moving loss: %s" % (e, i, moving_loss))
     print("1 epoch took %s seconds" % (time.time() - start_time))
-
-# format index : vector
+    
+    # format index : vector
 key = list(model.collect_params().keys())
 all_vecs = model.collect_params()[key[0]].data().asnumpy()
 cPickle.dump(all_vecs, open('all_vecs.p', 'wb'))
-<<<<<<< HEAD
 
 #  foramt word : vector
 w2vec_dict = dictionary.copy()
@@ -218,16 +207,5 @@ for word in dictionary:
     idx = dictionary[word]
     vector = all_vecs[idx]
     w2vec_dict[word] = vector
-
-cPickle.dump(w2vec_dict, open('w2vec_dict.p', 'wb'))
-=======
-
-#  foramt word : vector
-w2vec_dict = dictionary.copy()
-for word in dictionary:
-    idx = dictionary[word]
-    vector = all_vecs[idx]
-    w2vec_dict[word] = vector
->>>>>>> refs/remotes/origin/master
 
 cPickle.dump(w2vec_dict, open('w2vec_dict.p', 'wb'))
