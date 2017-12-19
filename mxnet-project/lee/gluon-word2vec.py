@@ -130,7 +130,11 @@ num_negative_samples = 5
 ctx = mx.gpu()
 data_iterator = Word2VecDataIterator(batch_size=batch_size,
                                      num_neg_samples=num_negative_samples,
+<<<<<<< HEAD
+                                     window=5, num_skips=2)
+=======
                                      window=5)
+>>>>>>> refs/remotes/origin/master
 batches = []
 training_data = []
 counting = 0
@@ -206,6 +210,7 @@ for e in range(num_epochs):
 key = list(model.collect_params().keys())
 all_vecs = model.collect_params()[key[0]].data().asnumpy()
 cPickle.dump(all_vecs, open('all_vecs.p', 'wb'))
+<<<<<<< HEAD
 
 #  foramt word : vector
 w2vec_dict = dictionary.copy()
@@ -213,5 +218,16 @@ for word in dictionary:
     idx = dictionary[word]
     vector = all_vecs[idx]
     w2vec_dict[word] = vector
+
+cPickle.dump(w2vec_dict, open('w2vec_dict.p', 'wb'))
+=======
+
+#  foramt word : vector
+w2vec_dict = dictionary.copy()
+for word in dictionary:
+    idx = dictionary[word]
+    vector = all_vecs[idx]
+    w2vec_dict[word] = vector
+>>>>>>> refs/remotes/origin/master
 
 cPickle.dump(w2vec_dict, open('w2vec_dict.p', 'wb'))
