@@ -47,6 +47,7 @@ def count_word(sentiments):
     word_counter = Counter()
     for sentiment in sentiments:
         for word in (clear_str(sentiment)).split():
+        # for word in clear_str(sentiment):
             if word not in word_counter.keys():
                 word_counter[word] = 1
             else:
@@ -56,8 +57,10 @@ def count_word(sentiments):
 
 def clear_str(sentiment):
     string = sentiment.lower().replace("<br />", " ")
-    remove_spe_chars = re.compile("[^A-Za-z0-9 ]+")
+    # new_string = [c.strip() for c in re.split('(\W+)', string) if c.strip() != '']
+    # return new_string
 
+    remove_spe_chars = re.compile("[^A-Za-z0-9 ]+")
     return re.sub(remove_spe_chars, "", string.lower())
 	
 
@@ -107,6 +110,7 @@ def encode_sentences(input_file, word_dict):
     for line in input_file:
         output_line = []
         for word in clear_str(line).split():
+        # for word in clear_str(line):
             if word in word_dict:
                 output_line.append(word_dict[word])
         output_string.append(output_line)
@@ -223,16 +227,16 @@ print("Y_test: " + str(Y_test))
 
 
 ## define network
-num_classes = 2
+num_classes = 1
 num_hidden = 25
 learning_rate = .01
 epochs = 200
-batch_size = 20
+batch_size = 5
 
 model = nn.Sequential()
 with model.name_scope():
     model.embed = nn.Embedding(voca_size, num_embed)
-    model.add(rnn.LSTM(num_hidden, layout = 'NTC', dropout=0.7, bidirectional=False))
+    model.add(rnn.LSTM(num_hidden, layout = 'NTC', dropout=0.5, bidirectional=False))
     model.add(nn.Dense(num_classes))
 
 def eval_accuracy(x, y, batch_size):
@@ -243,7 +247,9 @@ def eval_accuracy(x, y, batch_size):
         target = y[i*batch_size:(i*batch_size + batch_size), ]
 
         output = model(data)
-        predictions = nd.argmax(output, axis=1)
+        predictions = nd.array( [( 1 if out >= 0.5 else 0 ) for out in output ] , context )
+
+        # predictions = nd.argmax(output, axis=1)
         accuracy.update(preds=predictions, labels=target)
 
     return accuracy.get()[1]
@@ -255,7 +261,7 @@ model.embed.weight.set_data(embedding_matrix.as_in_context(context))
 trainer = gluon.Trainer(model.collect_params(), 'sgd',
                         {'learning_rate': learning_rate})
 
-softmax_cross_entropy = gluon.loss.SoftmaxCrossEntropyLoss()
+sigmoid_cross_entropy = gluon.loss.SigmoidBCELoss()
 
 for epoch in range(epochs):
 
@@ -268,9 +274,12 @@ for epoch in range(epochs):
 
         with autograd.record():
             output = model(data)
-            L = softmax_cross_entropy(output, target)
+            L = sigmoid_cross_entropy(output, target)
         L.backward()
         trainer.step(data.shape[0])
+
+    # filename = "lstm_net.params_epoch" + str(epoch)
+    # model.save_params(filename)
 
     test_accuracy = eval_accuracy(X_test, Y_test, batch_size)
     train_accuracy = eval_accuracy(X_train, Y_train, batch_size)
