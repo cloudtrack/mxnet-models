@@ -29,29 +29,11 @@ import numpy as np
 from six.moves import urllib
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
+import cPickle
+import time
 
 # Step 1: Download the data.
 url = 'http://mattmahoney.net/dc/'
-
-
-# pylint: disable=redefined-outer-name
-def maybe_download(filename, expected_bytes):
-  """Download a file if not present, and make sure it's the right size."""
-  local_filename = os.path.join(gettempdir(), filename)
-  if not os.path.exists(local_filename):
-    local_filename, _ = urllib.request.urlretrieve(url + filename,
-                                                   local_filename)
-  statinfo = os.stat(local_filename)
-  if statinfo.st_size == expected_bytes:
-    print('Found and verified', filename)
-  else:
-    print(statinfo.st_size)
-    raise Exception('Failed to verify ' + local_filename +
-                    '. Can you get to it with a browser?')
-  return local_filename
-
-
-filename = maybe_download('text8.zip', 31344016)
 
 
 # Read the data into a list of strings.
@@ -61,7 +43,7 @@ def read_data(filename):
     data = tf.compat.as_str(f.read(f.namelist()[0])).split()
   return data
 
-vocabulary = read_data(filename)
+vocabulary = read_data("text8.zip")
 print('Data size', len(vocabulary))
 
 # Step 2: Build the dictionary and replace rare words with UNK token.
@@ -203,6 +185,8 @@ with graph.as_default():
 # Step 5: Begin training.
 num_steps = 100001
 
+
+start_time = time.time()
 with tf.Session(graph=graph) as session:
   # We must initialize all variables before we use them.
   init.run()
@@ -225,23 +209,21 @@ with tf.Session(graph=graph) as session:
       # The average loss is an estimate of the loss over the last 2000 batches.
       print('Average loss at step ', step, ': ', average_loss)
       average_loss = 0
-
-    # Note that this is expensive (~20% slowdown if computed every 500 steps)
-    if step % 10000 == 0:
-      sim = similarity.eval()
-      for i in xrange(valid_size):
-        valid_word = reverse_dictionary[valid_examples[i]]
-        top_k = 8  # number of nearest neighbors
-        nearest = (-sim[i, :]).argsort()[1:top_k + 1]
-        log_str = 'Nearest to %s:' % valid_word
-        for k in xrange(top_k):
-          close_word = reverse_dictionary[nearest[k]]
-          log_str = '%s %s,' % (log_str, close_word)
-        print(log_str)
   final_embeddings = normalized_embeddings.eval()
 
-# Step 6: Visualize the embeddings.
+print("training took %s seconds" % (time.time() - start_time))
 
+# Step 6: Visualize the embeddings.
+cPickle.dump(final_embeddings, open('final_embeddings.p', 'wb'))
+
+#  foramt word : vector
+w2vec_dict = dictionary.copy()
+for word in dictionary:
+    idx = dictionary[word]
+    vector = final_embeddings[idx]
+    w2vec_dict[word] = vector
+
+cPickle.dump(w2vec_dict, open('tf_w2vec_dict.p', 'wb'))
 
 # pylint: disable=missing-docstring
 # Function to draw visualization of distance between embeddings.
@@ -274,3 +256,4 @@ try:
 except ImportError as ex:
   print('Please install sklearn, matplotlib, and scipy to show embeddings.')
   print(ex)
+
