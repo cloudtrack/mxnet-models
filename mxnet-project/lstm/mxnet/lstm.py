@@ -230,8 +230,8 @@ print("Y_test: " + str(Y_test))
 num_classes = 1
 num_hidden = 25
 learning_rate = .01
-epochs = 200
-batch_size = 5
+epochs = 10
+batch_size = 100
 
 model = nn.Sequential()
 with model.name_scope():
@@ -258,13 +258,14 @@ model.collect_params().initialize(mx.init.Xavier(), ctx=context)
 
 model.embed.weight.set_data(embedding_matrix.as_in_context(context))
 
-trainer = gluon.Trainer(model.collect_params(), 'sgd',
-                        {'learning_rate': learning_rate})
+trainer = gluon.Trainer(model.collect_params(), 'adadelta')
 
 sigmoid_cross_entropy = gluon.loss.SigmoidBCELoss()
 
+import time
+whole_start = time.time()
 for epoch in range(epochs):
-
+    start = time.time()
     for b in range(X_train.shape[0] // batch_size):
         data = X_train[b*batch_size:(b*batch_size + batch_size),]
         target = Y_train[b*batch_size:(b*batch_size + batch_size),]
@@ -277,6 +278,8 @@ for epoch in range(epochs):
             L = sigmoid_cross_entropy(output, target)
         L.backward()
         trainer.step(data.shape[0])
+    end = time.time()
+    print( "epoch" + str(epoch) +"train time: " + str(end-start) )
 
     # filename = "lstm_net.params_epoch" + str(epoch)
     # model.save_params(filename)
@@ -285,3 +288,6 @@ for epoch in range(epochs):
     train_accuracy = eval_accuracy(X_train, Y_train, batch_size)
     print("Epoch %s. Train_acc %s, Test_acc %s" %
           (epoch, train_accuracy, test_accuracy))
+
+whole_end = time.time()
+print( "total time: " + str(whole_end - whole_start) )
